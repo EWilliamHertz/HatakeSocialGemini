@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HatakeSocial - Your TCG Community & Marketplace</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+            color: #1f2937; /* Dark gray text */
+        }
+        .container {
+            max-width: 1200px;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 1rem; /* rounded-xl */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-lg */
+            padding: 1.5rem; /* p-6 */
+        }
+        .btn {
+            background-color: #4f46e5; /* indigo-600 */
+            color: #ffffff;
+            font-weight: 600; /* font-semibold */
+            padding: 0.5rem 1rem; /* py-2 px-4 */
+            border-radius: 0.5rem; /* rounded-lg */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+            transition: background-color 300ms, transform 150ms; /* transition-all duration-300 */
+        }
+        .btn:hover {
+            background-color: #4338ca; /* indigo-700 */
+            transform: translateY(-1px);
+        }
+        .input-field, .textarea-field {
+            width: 100%;
+            padding: 0.75rem; /* p-3 */
+            border: 1px solid #d1d5db; /* border-gray-300 */
+            border-radius: 0.5rem; /* rounded-lg */
+            outline: none;
+            transition: border-color 200ms, ring-color 200ms; /* transition-all duration-200 */
+        }
+        .input-field:focus, .textarea-field:focus {
+            border-color: #6366f1; /* indigo-500 */
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.5); /* focus:ring-2 focus:ring-indigo-500 */
+        }
+        .header-link.active {
+            color: #4f46e5; /* indigo-600 */
+            font-weight: 700; /* font-bold */
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .header-nav {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .header-nav button {
+                width: 100%;
+                text-align: center;
+            }
+            .user-id-display {
+                display: none; /* Hide User ID on small screens */
+            }
+            .post-grid, .marketplace-grid, .community-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <!-- Header and Navigation -->
+    <header class="bg-white shadow-md py-4">
+        <div class="container mx-auto flex flex-col sm:flex-row justify-between items-center px-4">
+            <h1 class="text-2xl font-bold text-indigo-800 mb-4 sm:mb-0">HatakeSocial</h1>
+            <nav class="flex flex-wrap justify-center sm:justify-start space-x-4 sm:space-x-6 text-lg font-medium header-nav">
+                <button onclick="navigateTo('home')" class="text-gray-700 hover:text-indigo-600 transition-colors duration-200 header-link" id="nav-home">Home</button>
+                <button onclick="navigateTo('profile')" class="text-gray-700 hover:text-indigo-600 transition-colors duration-200 header-link" id="nav-profile">Profile</button>
+                <button onclick="navigateTo('marketplace')" class="text-gray-700 hover:text-indigo-600 transition-colors duration-200 header-link" id="nav-marketplace">Marketplace</button>
+                <button onclick="navigateTo('community')" class="text-gray-700 hover:text-indigo-600 transition-colors duration-200 header-link" id="nav-community">Community</button>
+            </nav>
+            <div class="flex items-center mt-4 sm:mt-0">
+                <span id="userIdDisplay" class="text-sm text-gray-500 mr-4 hidden md:block user-id-display"></span>
+                <button id="authButton" class="btn bg-red-600 hover:bg-red-700" onclick="handleAuthAction()">Loading...</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="appContent" class="flex-grow"></main>
+
+    <!-- Modal for messages (e.g., error, info) -->
+    <div id="messageModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
+            <h3 id="modalTitle" class="text-xl font-semibold mb-4 text-gray-800"></h3>
+            <p id="modalMessage" class="text-gray-700 mb-6"></p>
+            <button onclick="closeModal()" class="btn bg-indigo-600 hover:bg-indigo-700">OK</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase SDK imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase variables
+        let app;
+        let db;
+        let auth;
+        let currentUserId = null;
+        let isAuthInitialized = false;
+        let currentUserProfile = null; // Store current user's profile for quick access
+
+        // Environment variables for Firebase and App ID
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
+        /**
+         * Initializes Firebase and sets up authentication listener.
+         * This function is called once the window loads to ensure all DOM elements are available.
+         */
+        async function initializeFirebaseAndAuth() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Listen for authentication state changes
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        document.getElementById('userIdDisplay').textContent = `User ID: ${currentUserId.substring(0, 8)}...`;
+                        document.getElementById('authButton').textContent = 'Sign Out';
+                        document.getElementById('authButton').classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+                        document.getElementById('authButton').classList.add('bg-red-600', 'hover:bg-red-700');
+                        console.log("User signed in:", currentUserId);
+                        await fetchUserProfile(currentUserId);
+                    } else {
+                        currentUserId = null;
+                        document.getElementById('userIdDisplay').textContent = '';
+                        document.getElementById('authButton').textContent = 'Sign In Anonymously';
+                        document.getElementById('authButton').classList.remove('bg-red-600', 'hover:bg-red-700');
+                        document.getElementById('authButton').classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+                        currentUserProfile = null; // Clear profile on sign out
+                        console.log("User signed out or no user.");
+
+                        // Attempt anonymous sign-in if no user or custom token
+                        if (!user && typeof __initial_auth_token === 'undefined') {
+                            await signInAnonymously(auth);
+                        }
+                    }
+                    isAuthInitialized = true;
+                    // After auth is ready, render the current page
+                    renderPage(currentPage);
+                });
+
+                // Initial anonymous sign-in if custom token is not provided
+                // This ensures there's always a user context for Firestore rules
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+            } catch (error) {
+                console.error("Firebase initialization error:", error);
+                showMessageModal('Error', `Failed to initialize application. Please try again. Details: ${error.message}`);
+                isAuthInitialized = true; // Mark as initialized even on error to unblock rendering
+                renderPage(currentPage); // Render the page even with error
+            }
+        }
+
+        /**
+         * Fetches or creates a user profile.
+         * @param {string} userId - The current user's ID.
+         */
+        async function fetchUserProfile(userId) {
+            if (!db || !userId) {
+                console.log("DB not ready or no user ID to fetch profile.");
+                return;
+            }
+            const userProfileRef = doc(db, `/artifacts/${appId}/users/${userId}/profiles`, userId);
+            try {
+                const docSnap = await getDoc(userProfileRef);
+                if (docSnap.exists()) {
+                    currentUserProfile = docSnap.data();
+                    console.log("User profile loaded:", currentUserProfile);
+                } else {
+                    // Create a default profile if it doesn't exist
+                    const defaultProfile = {
+                        username: `User${userId.substring(0, 5)}`,
+                        avatar: `https://placehold.co/100x100/F0F0F0/000000?text=${userId.substring(0, 2)}`,
+                        bio: 'New HatakeSocial member!',
+                        tcgInterests: [],
+                        userId: userId
+                    };
+                    await setDoc(userProfileRef, defaultProfile);
+                    currentUserProfile = defaultProfile;
+                    console.log("Default user profile created:", currentUserProfile);
+                }
+            } catch (error) {
+                console.error("Error fetching or creating user profile:", error);
+                showMessageModal('Profile Error', `Failed to load or create profile: ${error.message}`);
+            }
+        }
+
+        /**
+         * Handles the sign-in/sign-out action based on current auth state.
+         */
+        async function handleAuthAction() {
+            if (currentUserId) {
+                // User is signed in, so sign out
+                try {
+                    await signOut(auth);
+                    navigateTo('home'); // Redirect to home page after sign out
+                } catch (error) {
+                    console.error("Error signing out:", error);
+                    showMessageModal('Sign Out Error', `Failed to sign out: ${error.message}`);
+                }
+            } else {
+                // No user signed in, attempt anonymous sign-in
+                try {
+                    await signInAnonymously(auth);
+                } catch (error) {
+                    console.error("Error signing in anonymously:", error);
+                    showMessageModal('Sign In Error', `Failed to sign in: ${error.message}`);
+                }
+            }
+        }
+
+        // --- Routing and Page Rendering ---
+        let currentPage = 'home'; // Default page
+
+        /**
+         * Navigates to a different page and updates the UI.
+         * @param {string} pageName - The name of the page to navigate to ('home', 'profile', 'marketplace', 'community', '404').
+         */
+        function navigateTo(pageName) {
+            currentPage = pageName;
+            renderPage(pageName);
+            updateNavigationLinks(pageName);
+        }
+
+        /**
+         * Updates the active state of navigation links in the header.
+         * @param {string} activePage - The name of the currently active page.
+         */
+        function updateNavigationLinks(activePage) {
+            document.querySelectorAll('.header-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            const activeLink = document.getElementById(`nav-${activePage}`);
+            if (activeLink) {
+                activeLink.classList.add('active');
+            }
+        }
+
+        /**
+         * Renders the content of the specified page into the main content area.
+         * @param {string} pageName - The name of the page to render.
+         */
+        function renderPage(pageName) {
+            const appContent = document.getElementById('appContent');
+            if (!appContent) {
+                console.error("App content element not found.");
+                return;
+            }
+
+            // Show a loading indicator while Firebase is initializing
+            if (!isAuthInitialized) {
+                appContent.innerHTML = `
+                    <div class="text-center py-16 text-gray-700 font-semibold text-2xl animate-pulse">
+                        Loading HatakeSocial...
+                    </div>
+                `;
+                return;
+            }
+
+            switch (pageName) {
+                case 'home':
+                    renderHomePage(appContent);
+                    break;
+                case 'profile':
+                    renderProfilePage(appContent);
+                    break;
+                case 'marketplace':
+                    renderMarketplacePage(appContent);
+                    break;
+                case 'community':
+                    renderCommunityPage(appContent);
+                    break;
+                default:
+                    renderNotFoundPage(appContent);
+                    break;
+            }
+        }
+
+        // --- Modal Functions ---
+        const messageModal = document.getElementById('messageModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+
+        /**
+         * Displays a custom modal message to the user.
+         * @param {string} title - The title of the modal.
+         * @param {string} message - The message content.
+         */
+        function showMessageModal(title, message) {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            messageModal.classList.remove('hidden');
+        }
+
+        /**
+         * Hides the custom modal.
+         */
+        function closeModal() {
+            messageModal.classList.add('hidden');
+        }
+
+        // --- Page Render Functions ---
+
+        /**
+         * Renders the Home Page content.
+         * @param {HTMLElement} container - The DOM element to render into.
+         */
+        function renderHomePage(container) {
+            container.innerHTML = `
+                <div class="container mx-auto px-4 py-8">
+                    <h1 class="text-4xl font-bold text-center text-indigo-800 mb-8 rounded-lg bg-indigo-50 p-4 shadow-sm">HatakeSocial Feed</h1>
+
+                    <!-- Post Creation Section -->
+                    <div class="card mb-8">
+                        <div class="flex items-center mb-4">
+                            <img id="postCreatorAvatar" src="${currentUserProfile?.avatar || 'https://placehold.co/100x100/F0F0F0/000000?text=U'}" alt="User Avatar" class="w-12 h-12 rounded-full mr-4 object-cover" />
+                            <h3 class="font-semibold text-lg text-gray-800">${currentUserProfile?.username || 'Guest User'}</h3>
+                        </div>
+                        <textarea id="newPostContent" placeholder="What's new in your TCG world?" rows="3" class="textarea-field mb-4"></textarea>
+                        <div class="flex items-center mb-4 space-x-4">
+                            <label class="flex items-center text-gray-700">
+                                <input type="radio" name="postType" value="text" checked class="mr-2" onchange="document.getElementById('newPostImageUrlContainer').classList.add('hidden');">
+                                Text Post
+                            </label>
+                            <label class="flex items-center text-gray-700">
+                                <input type="radio" name="postType" value="image" class="mr-2" onchange="document.getElementById('newPostImageUrlContainer').classList.remove('hidden');">
+                                Image Post
+                            </label>
+                        </div>
+                        <div id="newPostImageUrlContainer" class="hidden mb-4">
+                            <input type="url" id="newPostImageUrl" placeholder="Image URL (e.g., https://example.com/my-card.jpg)" class="input-field">
+                        </div>
+                        <button id="submitPostBtn" class="btn w-full">
+                            Post to Feed
+                        </button>
+                    </div>
+
+                    <!-- Posts Display Section -->
+                    <div id="postsDisplay" class="space-y-6">
+                        <div class="text-center py-8 text-gray-600">Loading posts...</div>
+                    </div>
+                </div>
+            `;
+
+            // Add event listener for post submission
+            document.getElementById('submitPostBtn').addEventListener('click', handlePostSubmit);
+
+            // Fetch and display posts
+            fetchAndDisplayPosts();
+        }
+
+        /**
+         * Handles the submission of a new post to Firestore.
+         */
+        async function handlePostSubmit() {
+            if (!db || !currentUserId || !currentUserProfile) {
+                showMessageModal('Error', 'Please sign in to post.');
+                return;
+            }
+
+            const newPostContent = document.getElementById('newPostContent').value.trim();
+            const newPostType = document.querySelector('input[name="postType"]:checked').value;
+            const newPostImageUrl = document.getElementById('newPostImageUrl').value.trim();
+
+            if (!newPostContent && newPostType === 'text') {
+                showMessageModal('Error', 'Post content cannot be empty.');
+                return;
+            }
+            if (!newPostImageUrl && newPostType === 'image') {
+                showMessageModal('Error', 'Image URL cannot be empty for image posts.');
+                return;
+            }
+
+            try {
+                const postsColRef = collection(db, `/artifacts/${appId}/public/data/posts`);
+                await addDoc(postsColRef, {
+                    userId: currentUserId,
+                    username: currentUserProfile.username,
+                    avatar: currentUserProfile.avatar,
+                    type: newPostType,
+                    content: newPostContent,
+                    imageUrl: newPostType === 'image' ? newPostImageUrl : '',
+                    likes: 0,
+                    comments: 0,
+                    timestamp: serverTimestamp(),
+                });
+                document.getElementById('newPostContent').value = '';
+                document.getElementById('newPostImageUrl').value = '';
+                document.querySelector('input[name="postType"][value="text"]').checked = true;
+                document.getElementById('newPostImageUrlContainer').classList.add('hidden');
+                console.log("Post added successfully.");
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                showMessageModal('Post Error', `Failed to create post: ${error.message}`);
+            }
+        }
+
+        /**
+         * Fetches posts from Firestore and renders them to the display area.
+         */
+        function fetchAndDisplayPosts() {
+            if (!db || !isAuthInitialized) {
+                console.log("DB not ready for fetching posts.");
+                return;
+            }
+
+            const postsDisplay = document.getElementById('postsDisplay');
+            if (!postsDisplay) return; // Element might not be present if navigating quickly
+
+            postsDisplay.innerHTML = '<div class="text-center py-8 text-gray-600">Loading posts...</div>';
+
+            const postsColRef = collection(db, `/artifacts/${appId}/public/data/posts`);
+            const q = query(postsColRef, orderBy('timestamp', 'desc'));
+
+            onSnapshot(q, (snapshot) => {
+                let postsHtml = '';
+                if (snapshot.empty) {
+                    postsHtml = '<div class="text-center py-8 text-gray-600">No posts yet. Be the first to share something!</div>';
+                } else {
+                    snapshot.docs.forEach(docSnap => {
+                        const post = docSnap.data();
+                        const postId = docSnap.id;
+                        const postTimestamp = post.timestamp?.toDate ? new Date(post.timestamp.toDate()).toLocaleString() : 'Just now';
+                        const imageUrlHtml = post.type === 'image' && post.imageUrl ?
+                            `<img src="${post.imageUrl}" alt="Post content" class="w-full h-auto rounded-lg mb-4 object-cover max-h-96" onerror="this.src='https://placehold.co/600x400/CCCCCC/FFFFFF?text=Image+Load+Error';" />` : '';
+
+                        postsHtml += `
+                            <div class="card">
+                                <div class="flex items-center mb-4">
+                                    <img src="${post.avatar || 'https://placehold.co/100x100/F0F0F0/000000?text=U'}" alt="User Avatar" class="w-12 h-12 rounded-full mr-4 object-cover" />
+                                    <div>
+                                        <p class="font-semibold text-gray-900">${post.username}</p>
+                                        <p class="text-sm text-gray-500">${postTimestamp}</p>
+                                    </div>
+                                </div>
+                                <p class="text-gray-800 mb-4">${post.content}</p>
+                                ${imageUrlHtml}
+                                <div class="flex items-center space-x-4 text-gray-600">
+                                    <button class="flex items-center text-indigo-600 hover:text-indigo-800 transition-colors duration-200" onclick="handleLikePost('${postId}', ${post.likes})">
+                                        <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd"></path>
+                                        </svg>
+                                        <span id="likes-${postId}">${post.likes}</span> Likes
+                                    </button>
+                                    <button class="flex items-center hover:text-indigo-600 transition-colors duration-200">
+                                        <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M18 13.5a2.25 2.25 0 01-2.25 2.25H13.5a.75.75 0 00-.75.75v3.75l-3.75-3.75a.75.75 0 00-.75-.75H3.75A2.25 2.25 0 011.5 13.5V3.75A2.25 2.25 0 013.75 1.5h10.5A2.25 2.25 0 0116.5 3.75v7.5A2.25 2.25 0 0113.75 13.5z" clipRule="evenodd" />
+                                        </svg>
+                                        ${post.comments} Comments
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                postsDisplay.innerHTML = postsHtml;
+            }, (error) => {
+                console.error("Error fetching posts:", error);
+                postsDisplay.innerHTML = '<div class="text-center py-8 text-red-600">Failed to load posts.</div>';
+                showMessageModal('Error', `Failed to load posts: ${error.message}`);
+            });
+        }
+
+        /**
+         * Handles the like action for a post.
+         * @param {string} postId - The ID of the post to like.
+         * @param {number} currentLikes - The current number of likes for the post.
+         */
+        async function handleLikePost(postId, currentLikes) {
+            if (!db || !currentUserId) {
+                showMessageModal('Error', 'Please sign in to like posts.');
+                return;
+            }
+            try {
+                const postRef = doc(db, `/artifacts/${appId}/public/data/posts`, postId);
+                await updateDoc(postRef, {
+                    likes: currentLikes + 1
+                });
+                // The onSnapshot listener will automatically update the UI
+            } catch (error) {
+                console.error("Error liking post:", error);
+                showMessageModal('Like Error', `Failed to like post: ${error.message}`);
+            }
+        }
+
+        /**
+         * Renders the Profile Page content.
+         * @param {HTMLElement} container - The DOM element to render into.
+         */
+        function renderProfilePage(container) {
+            container.innerHTML = `
+                <div class="container mx-auto px-4 py-8">
+                    <h1 class="text-4xl font-bold text-center text-indigo-800 mb-8 rounded-lg bg-indigo-50 p-4 shadow-sm">My Profile</h1>
+                    <div id="profileContent" class="card max-w-3xl mx-auto">
+                        <div class="text-center py-8 text-gray-600">Loading profile...</div>
+                    </div>
+
+                    <!-- Placeholder for Collection Showcase -->
+                    <h2 class="text-3xl font-bold text-center text-indigo-800 mt-12 mb-6">My Collection Showcase</h2>
+                    <div class="card max-w-3xl mx-auto text-center p-8 text-gray-600">
+                        <p>Your amazing card collection will be displayed here!</p>
+                        <p class="text-sm mt-2">Features like collection import, valuation, and detailed tracking are coming soon.</p>
+                        <div class="mt-6 flex justify-center flex-wrap gap-4">
+                            <img src="https://placehold.co/150x200/F8D6E0/000000?text=Rare+Card+1" alt="Placeholder Card" class="rounded-lg shadow-md" />
+                            <img src="https://placehold.co/150x200/D6E8F8/000000?text=Shiny+Card+2" alt="Placeholder Card" class="rounded-lg shadow-md" />
+                            <img src="https://placehold.co/150x200/E8F8D6/000000?text=Mythic+Rare+3" alt="Placeholder Card" class="rounded-lg shadow-md" />
+                        </div>
+                    </div>
+                </div>
+            `;
+            fetchAndDisplayProfile();
+        }
+
+        /**
+         * Fetches and displays the user's profile.
+         */
+        function fetchAndDisplayProfile() {
+            const profileContentDiv = document.getElementById('profileContent');
+            if (!profileContentDiv || !db || !currentUserId || !isAuthInitialized) {
+                profileContentDiv.innerHTML = '<div class="text-center py-8 text-gray-600">Please sign in to view your profile.</div>';
+                return;
+            }
+
+            profileContentDiv.innerHTML = '<div class="text-center py-8 text-gray-600">Loading profile...</div>';
+
+            const userProfileRef = doc(db, `/artifacts/${appId}/users/${currentUserId}/profiles`, currentUserId);
+            onSnapshot(userProfileRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const profile = docSnap.data();
+                    currentUserProfile = profile; // Update global profile
+                    renderProfileView(profileContentDiv, profile);
+                } else {
+                    profileContentDiv.innerHTML = `
+                        <div class="text-center p-8 text-gray-600">
+                            <p>No profile found. Let's create one!</p>
+                            <button class="btn mt-4" onclick="createDefaultProfile()">Create Profile</button>
+                        </div>
+                    `;
+                }
+            }, (error) => {
+                console.error("Error fetching profile:", error);
+                profileContentDiv.innerHTML = '<div class="text-center py-8 text-red-600">Failed to load profile.</div>';
+                showMessageModal('Error', `Failed to load profile: ${error.message}`);
+            });
+        }
+
+        /**
+         * Renders the profile view or edit form.
+         * @param {HTMLElement} container - The DOM element to render into.
+         * @param {Object} profile - The user's profile data.
+         * @param {boolean} isEditing - Whether to show the edit form.
+         */
+        function renderProfileView(container, profile, isEditing = false) {
+            if (isEditing) {
+                container.innerHTML = `
+                    <div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Username:</label>
+                            <input type="text" id="editUsername" value="${profile.username || ''}" class="input-field" />
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Bio:</label>
+                            <textarea id="editBio" rows="4" class="textarea-field">${profile.bio || ''}</textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Avatar URL:</label>
+                            <input type="url" id="editAvatar" value="${profile.avatar || ''}" class="input-field" />
+                        </div>
+                        <div class="mb-6">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">TCG Interests (comma-separated):</label>
+                            <input type="text" id="editTcgInterests" value="${(profile.tcgInterests || []).join(', ')}" class="input-field" />
+                        </div>
+                        <div class="flex justify-end space-x-4">
+                            <button class="btn bg-gray-500 hover:bg-gray-600" onclick="renderProfileView(document.getElementById('profileContent'), currentUserProfile, false)">Cancel</button>
+                            <button class="btn" onclick="handleSaveProfile()">Save Profile</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const tcgInterestsHtml = (profile.tcgInterests && profile.tcgInterests.length > 0) ?
+                    `<div class="mb-4">
+                        <h3 class="font-semibold text-gray-800 mb-2">TCG Interests:</h3>
+                        <div class="flex flex-wrap justify-center gap-2">
+                            ${profile.tcgInterests.map(interest => `<span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">${interest}</span>`).join('')}
+                        </div>
+                    </div>` : '';
+
+                container.innerHTML = `
+                    <div class="text-center">
+                        <img
+                            src="${profile.avatar || 'https://placehold.co/150x150/F0F0F0/000000?text=U'}"
+                            alt="Profile Avatar"
+                            class="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-4 border-indigo-200 shadow-md"
+                            onerror="this.src='https://placehold.co/150x150/CCCCCC/FFFFFF?text=Error';"
+                        />
+                        <h2 class="text-3xl font-bold text-gray-900 mb-2">${profile.username}</h2>
+                        <p class="text-indigo-600 font-mono text-sm mb-4">User ID: ${currentUserId}</p>
+                        <p class="text-gray-700 mb-4">${profile.bio || 'No bio provided.'}</p>
+                        ${tcgInterestsHtml}
+                        <button class="btn mt-4" onclick="renderProfileView(document.getElementById('profileContent'), currentUserProfile, true)">
+                            Edit Profile
+                        </button>
+                    </div>
+                `;
+            }
+            // Update the avatar in the post creation section if it's visible
+            const postCreatorAvatar = document.getElementById('postCreatorAvatar');
+            if (postCreatorAvatar) {
+                postCreatorAvatar.src = profile.avatar || 'https://placehold.co/100x100/F0F0F0/000000?text=U';
+            }
+        }
+
+        /**
+         * Creates a default user profile if none exists.
+         */
+        async function createDefaultProfile() {
+            if (!db || !currentUserId) {
+                showMessageModal('Error', 'Cannot create profile. User not authenticated.');
+                return;
+            }
+            try {
+                const userProfileRef = doc(db, `/artifacts/${appId}/users/${currentUserId}/profiles`, currentUserId);
+                const defaultProfile = {
+                    username: `User${currentUserId.substring(0, 5)}`,
+                    avatar: `https://placehold.co/100x100/F0F0F0/000000?text=${currentUserId.substring(0, 2)}`,
+                    bio: 'New HatakeSocial member!',
+                    tcgInterests: [],
+                    userId: currentUserId
+                };
+                await setDoc(userProfileRef, defaultProfile);
+                currentUserProfile = defaultProfile; // Update global profile
+                showMessageModal('Success', 'Default profile created!');
+                fetchAndDisplayProfile(); // Re-render profile page
+            } catch (error) {
+                console.error("Error creating default profile:", error);
+                showMessageModal('Error', `Failed to create default profile: ${error.message}`);
+            }
+        }
+
+        /**
+         * Handles saving the edited profile data to Firestore.
+         */
+        async function handleSaveProfile() {
+            if (!db || !currentUserId) {
+                showMessageModal('Error', 'Please sign in to save your profile.');
+                return;
+            }
+            const username = document.getElementById('editUsername').value.trim();
+            const bio = document.getElementById('editBio').value.trim();
+            const avatar = document.getElementById('editAvatar').value.trim();
+            const tcgInterests = document.getElementById('editTcgInterests').value.split(',').map(s => s.trim()).filter(s => s !== '');
+
+            if (!username) {
+                showMessageModal('Validation Error', 'Username cannot be empty.');
+                return;
+            }
+
+            try {
+                const userProfileRef = doc(db, `/artifacts/${appId}/users/${currentUserId}/profiles`, currentUserId);
+                await updateDoc(userProfileRef, {
+                    username: username,
+                    bio: bio,
+                    avatar: avatar,
+                    tcgInterests: tcgInterests
+                });
+                showMessageModal('Success', 'Profile saved successfully!');
+                // onSnapshot will re-render the view with new data
+            } catch (error) {
+                console.error("Error saving profile:", error);
+                showMessageModal('Profile Save Error', `Failed to save profile: ${error.message}`);
+            }
+        }
+
+
+        /**
+         * Renders the Marketplace Page content.
+         * @param {HTMLElement} container - The DOM element to render into.
+         */
+        function renderMarketplacePage(container) {
+            container.innerHTML = `
+                <div class="container mx-auto px-4 py-8">
+                    <h1 class="text-4xl font-bold text-center text-indigo-800 mb-8 rounded-lg bg-indigo-50 p-4 shadow-sm">Marketplace</h1>
+                    <div id="marketplaceItemsDisplay" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 marketplace-grid">
+                        <div class="text-center py-8 text-gray-600 col-span-full">Loading marketplace listings...</div>
+                    </div>
+                </div>
+            `;
+            fetchAndDisplayMarketplaceItems();
+        }
+
+        /**
+         * Fetches marketplace items from Firestore and displays them.
+         */
+        function fetchAndDisplayMarketplaceItems() {
+            const marketplaceItemsDisplay = document.getElementById('marketplaceItemsDisplay');
+            if (!marketplaceItemsDisplay || !db || !isAuthInitialized) {
+                console.log("DB not ready for fetching marketplace items.");
+                return;
+            }
+
+            marketplaceItemsDisplay.innerHTML = '<div class="text-center py-8 text-gray-600 col-span-full">Loading marketplace listings...</div>';
+
+            const itemsColRef = collection(db, `/artifacts/${appId}/public/data/marketplaceItems`);
+            const q = query(itemsColRef, orderBy('timestamp', 'desc')); // Order by timestamp to show newest first
+
+            onSnapshot(q, (snapshot) => {
+                let itemsHtml = '';
+                if (snapshot.empty) {
+                    // Fallback to mock data if Firestore is empty
+                    const mockMarketplaceItems = [
+                        { id: 'mock1', userId: 'mockuser1', username: 'MockSeller', title: 'Rare Holo Charizard (Pokemon)', price: '150.00', condition: 'Near Mint', imageUrl: 'https://placehold.co/400x300/F06292/FFFFFF?text=Charizard', game: 'Pokemon', timestamp: new Date() },
+                        { id: 'mock2', userId: 'mockuser2', username: 'GameFanatic', title: 'Black Lotus (MTG Proxy)', price: '50.00', condition: 'Lightly Played', imageUrl: 'https://placehold.co/400x300/64B5F6/FFFFFF?text=Black+Lotus', game: 'MTG', timestamp: new Date() },
+                        { id: 'mock3', userId: 'mockuser3', username: 'DuelistKing', title: 'Dark Magician (YGO LOB)', price: '80.00', condition: 'Excellent', imageUrl: 'https://placehold.co/400x300/81C784/FFFFFF?text=Dark+Magician', game: 'Yu-Gi-Oh!', timestamp: new Date() },
+                    ];
+                    mockMarketplaceItems.forEach(item => {
+                        itemsHtml += generateMarketplaceItemHtml(item);
+                    });
+                    if (currentUserId && currentUserProfile && snapshot.size === 0) {
+                        // Add a temporary 'add item' button if no items and user is logged in
+                        itemsHtml += `
+                            <div class="col-span-full text-center py-4">
+                                <p class="text-gray-600 mb-4">No real listings yet. You can add one!</p>
+                                <button class="btn" onclick="addMockMarketplaceItem()">Add Sample Item</button>
+                            </div>
+                        `;
+                    } else if (!currentUserId) {
+                         itemsHtml = '<div class="col-span-full text-center py-8 text-gray-600">No active listings. Sign in to add your own!</div>';
+                    }
+
+                } else {
+                    snapshot.docs.forEach(docSnap => {
+                        const item = docSnap.data();
+                        item.id = docSnap.id; // Add ID to item object
+                        itemsHtml += generateMarketplaceItemHtml(item);
+                    });
+                }
+                marketplaceItemsDisplay.innerHTML = itemsHtml;
+            }, (error) => {
+                console.error("Error fetching marketplace items:", error);
+                marketplaceItemsDisplay.innerHTML = '<div class="text-center py-8 text-red-600 col-span-full">Failed to load marketplace listings.</div>';
+                showMessageModal('Error', `Failed to load marketplace items: ${error.message}`);
+            });
+        }
+
+        /**
+         * Generates HTML for a single marketplace item.
+         * @param {Object} item - The marketplace item data.
+         * @returns {string} The HTML string for the item card.
+         */
+        function generateMarketplaceItemHtml(item) {
+            return `
+                <div class="card flex flex-col items-center text-center">
+                    <img src="${item.imageUrl || 'https://placehold.co/400x300/CCCCCC/FFFFFF?text=No+Image'}" alt="${item.title}" class="w-full h-48 object-cover rounded-lg mb-4" onerror="this.src='https://placehold.co/400x300/CCCCCC/FFFFFF?text=Image+Load+Error';" />
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">${item.title}</h3>
+                    <p class="text-gray-700 mb-1"><strong>Price:</strong> $${parseFloat(item.price).toFixed(2)}</p>
+                    <p class="text-gray-600 mb-1"><strong>Condition:</strong> ${item.condition}</p>
+                    <p class="text-gray-500 text-sm mb-4">Listed by: ${item.username}</p>
+                    <button class="btn w-full">View Details</button>
+                </div>
+            `;
+        }
+
+        /**
+         * Adds a sample marketplace item to Firestore.
+         */
+        async function addMockMarketplaceItem() {
+            if (!db || !currentUserId || !currentUserProfile) {
+                showMessageModal('Error', 'Please sign in to add items.');
+                return;
+            }
+            try {
+                const itemsColRef = collection(db, `/artifacts/${appId}/public/data/marketplaceItems`);
+                await addDoc(itemsColRef, {
+                    userId: currentUserId,
+                    username: currentUserProfile.username,
+                    title: 'Signed Promo Card (Sample)',
+                    price: '99.99',
+                    condition: 'Near Mint',
+                    imageUrl: 'https://placehold.co/400x300/FFC1DD/000000?text=Signed+Card',
+                    game: 'Custom TCG',
+                    timestamp: serverTimestamp(),
+                });
+                showMessageModal('Success', 'Sample item added!');
+            } catch (error) {
+                console.error("Error adding mock marketplace item:", error);
+                showMessageModal('Add Item Error', `Failed to add sample item: ${error.message}`);
+            }
+        }
+
+
+        /**
+         * Renders the Community Page content.
+         * @param {HTMLElement} container - The DOM element to render into.
+         */
+        function renderCommunityPage(container) {
+            container.innerHTML = `
+                <div class="container mx-auto px-4 py-8">
+                    <h1 class="text-4xl font-bold text-center text-indigo-800 mb-8 rounded-lg bg-indigo-50 p-4 shadow-sm">Community Hub</h1>
+
+                    <!-- Community Groups Section -->
+                    <h2 class="text-3xl font-bold text-indigo-700 mb-6 text-center">Featured Groups</h2>
+                    <div id="communityGroupsDisplay" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 community-grid">
+                        <div class="text-center py-8 text-gray-600 col-span-full">Loading community groups...</div>
+                    </div>
+
+                    <!-- Events Section (Placeholder) -->
+                    <h2 class="text-3xl font-bold text-indigo-700 mb-6 text-center">Upcoming Events</h2>
+                    <div class="card max-w-3xl mx-auto text-center p-8 text-gray-600">
+                        <p>Stay tuned for exciting tournaments, meetups, and online events!</p>
+                        <p class="text-sm mt-2">Event creation and registration features are on the roadmap.</p>
+                        <div class="mt-6">
+                            <img src="https://placehold.co/600x200/CCE0F8/000000?text=Upcoming+Event+Placeholder" alt="Event Placeholder" class="rounded-lg shadow-md mx-auto" />
+                        </div>
+                    </div>
+                </div>
+            `;
+            fetchAndDisplayCommunityGroups();
+        }
+
+        /**
+         * Fetches community groups from Firestore and displays them.
+         */
+        function fetchAndDisplayCommunityGroups() {
+            const communityGroupsDisplay = document.getElementById('communityGroupsDisplay');
+            if (!communityGroupsDisplay || !db || !isAuthInitialized) {
+                console.log("DB not ready for fetching community groups.");
+                return;
+            }
+
+            communityGroupsDisplay.innerHTML = '<div class="text-center py-8 text-gray-600 col-span-full">Loading community groups...</div>';
+
+            const groupsColRef = collection(db, `/artifacts/${appId}/public/data/communityGroups`);
+            const q = query(groupsColRef, orderBy('members', 'desc')); // Order by members for featured
+
+            onSnapshot(q, (snapshot) => {
+                let groupsHtml = '';
+                if (snapshot.empty) {
+                    // Fallback to mock data if Firestore is empty
+                    const mockCommunityGroups = [
+                        { id: 'mockGroup1', name: 'MTG Commander Enthusiasts', description: 'Discussion and trades for Commander players.', members: 1200, imageUrl: 'https://placehold.co/300x200/FFDDC1/000000?text=MTG+Group' },
+                        { id: 'mockGroup2', name: 'Pokemon TCG Local Trades (Gothenburg)', description: 'For local meetups and trades in Gothenburg.', members: 500, imageUrl: 'https://placehold.co/300x200/C1FFDD/000000?text=Pokemon+Local' },
+                        { id: 'mockGroup3', name: 'Yu-Gi-Oh! Deck Building', description: 'Share your best Yu-Gi-Oh! deck builds and strategies.', members: 750, imageUrl: 'https://placehold.co/300x200/DDC1FF/000000?text=YuGiOh+Decks' },
+                    ];
+                    mockCommunityGroups.forEach(group => {
+                        groupsHtml += generateCommunityGroupHtml(group);
+                    });
+                    if (currentUserId && currentUserProfile && snapshot.size === 0) {
+                        groupsHtml += `
+                            <div class="col-span-full text-center py-4">
+                                <p class="text-gray-600 mb-4">No community groups yet. Add a sample!</p>
+                                <button class="btn" onclick="addMockCommunityGroup()">Add Sample Group</button>
+                            </div>
+                        `;
+                    } else if (!currentUserId) {
+                         groupsHtml = '<div class="col-span-full text-center py-8 text-gray-600">No active groups. Sign in to explore and create!</div>';
+                    }
+                } else {
+                    snapshot.docs.forEach(docSnap => {
+                        const group = docSnap.data();
+                        group.id = docSnap.id; // Add ID to group object
+                        groupsHtml += generateCommunityGroupHtml(group);
+                    });
+                }
+                communityGroupsDisplay.innerHTML = groupsHtml;
+            }, (error) => {
+                console.error("Error fetching community groups:", error);
+                communityGroupsDisplay.innerHTML = '<div class="text-center py-8 text-red-600 col-span-full">Failed to load community groups.</div>';
+                showMessageModal('Error', `Failed to load community groups: ${error.message}`);
+            });
+        }
+
+        /**
+         * Generates HTML for a single community group.
+         * @param {Object} group - The community group data.
+         * @returns {string} The HTML string for the group card.
+         */
+        function generateCommunityGroupHtml(group) {
+            return `
+                <div class="card flex flex-col items-center text-center">
+                    <img src="${group.imageUrl || 'https://placehold.co/300x200/CCCCCC/FFFFFF?text=No+Image'}" alt="${group.name}" class="w-full h-40 object-cover rounded-lg mb-4" onerror="this.src='https://placehold.co/300x200/CCCCCC/FFFFFF?text=Image+Load+Error';" />
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">${group.name}</h3>
+                    <p class="text-gray-700 mb-2">${group.description}</p>
+                    <p class="text-gray-600 text-sm mb-4">${group.members} Members</p>
+                    <button class="btn w-full">Join Group</button>
+                </div>
+            `;
+        }
+
+        /**
+         * Adds a sample community group to Firestore.
+         */
+        async function addMockCommunityGroup() {
+            if (!db || !currentUserId || !currentUserProfile) {
+                showMessageModal('Error', 'Please sign in to add groups.');
+                return;
+            }
+            try {
+                const groupsColRef = collection(db, `/artifacts/${appId}/public/data/communityGroups`);
+                await addDoc(groupsColRef, {
+                    name: 'Sample TCG Group (User Created)',
+                    description: 'A place for TCG enthusiasts to connect!',
+                    members: 1, // Current user is the first member
+                    imageUrl: 'https://placehold.co/300x200/DDEEFF/000000?text=My+Group',
+                    createdBy: currentUserId,
+                    timestamp: serverTimestamp(),
+                });
+                showMessageModal('Success', 'Sample group added!');
+            } catch (error) {
+                console.error("Error adding mock community group:", error);
+                showMessageModal('Add Group Error', `Failed to add sample group: ${error.message}`);
+            }
+        }
+
+
+        /**
+         * Renders a 404 Not Found Page.
+         * @param {HTMLElement} container - The DOM element to render into.
+         */
+        function renderNotFoundPage(container) {
+            container.innerHTML = `
+                <div class="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
+                    <div class="card text-center max-w-md w-full">
+                        <h1 class="text-6xl font-bold text-indigo-600 mb-4">404</h1>
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Page Not Found</h2>
+                        <p class="text-gray-600 mb-6">The page you are looking for does not exist or has been moved.</p>
+                        <button class="btn" onclick="navigateTo('home')">Go to Home</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initialize the app when the window loads
+        window.onload = function() {
+            initializeFirebaseAndAuth();
+            updateNavigationLinks(currentPage); // Set initial active link
+            // The renderPage(currentPage) call is now handled by the onAuthStateChanged listener
+            // to ensure Firebase is ready before attempting to fetch data.
+        };
+
+        // Make functions globally accessible for inline event handlers
+        window.navigateTo = navigateTo;
+        window.handleAuthAction = handleAuthAction;
+        window.handleLikePost = handleLikePost;
+        window.handlePostSubmit = handlePostSubmit;
+        window.createDefaultProfile = createDefaultProfile;
+        window.handleSaveProfile = handleSaveProfile;
+        window.addMockMarketplaceItem = addMockMarketplaceItem;
+        window.addMockCommunityGroup = addMockCommunityGroup;
+        window.closeModal = closeModal; // For modal button
+    </script>
+</body>
+</html>
