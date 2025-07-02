@@ -4,357 +4,107 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HatakeSocial - TCG Community & Marketplace</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5;
-        }
-        .header-link.active {
-            border-bottom: 2px solid #4f46e5;
-            color: #4f46e5;
-        }
-    </style>
-</head>
-<body class="text-gray-800">
 
-    <header class="bg-white shadow-md sticky top-0 z-40">
-        <div class="container mx-auto px-4">
-            <div class="flex justify-between items-center py-3">
-                <div class="flex items-center space-x-2">
-                    <i class="fas fa-layer-group text-indigo-600 text-2xl"></i>
-                    <h1 class="text-xl font-bold text-indigo-800">HatakeSocial</h1>
-                </div>
-                <nav class="hidden md:flex space-x-8 text-sm font-semibold">
-                    <button onclick="navigateTo('home')" class="header-link active" id="nav-home">Home</button>
-                    <button onclick="navigateTo('profile')" class="header-link" id="nav-profile">Profile</button>
-                    <button onclick="navigateTo('marketplace')" class="header-link" id="nav-marketplace">Marketplace</button>
-                    <button onclick="navigateTo('community')" class="header-link" id="nav-community">Community</button>
-                </nav>
-                <div class="flex items-center space-x-4">
-                     <span id="userIdDisplay" class="text-xs text-gray-500 hidden md:block"></span>
-                    <button id="authButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">
-                        Loading...
-                    </button>
+    <!-- External CSS -->
+    <link rel="stylesheet" href="/css/style.css">
+
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- Global Header -->
+    <header class="site-header">
+        <div class="container header-container">
+            <!-- Logo -->
+            <a href="/" class="logo">
+                <img src="https://i.imgur.com/B06rBhI.png" alt="HatakeSocial Logo">
+            </a>
+
+            <!-- Main Navigation -->
+            <nav class="main-nav">
+                <a href="/home" class="nav-link active">Home</a>
+                <a href="/marketplace" class="nav-link">Marketplace</a>
+                <a href="/community" class="nav-link">Community</a>
+                <a href="/collection" class="nav-link">My Collection</a>
+            </nav>
+
+            <!-- Utility Navigation -->
+            <div class="utility-nav">
+                <select id="currency-switcher" class="currency-switcher">
+                    <option>SEK</option>
+                    <option>NOK</option>
+                    <option>DKK</option>
+                    <option>EUR</option>
+                </select>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Dark Mode">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <div id="user-session" class="user-session">
+                    <!-- This will be populated by script.js -->
                 </div>
             </div>
         </div>
     </header>
 
-    <main id="appContent" class="container mx-auto px-4 py-8"></main>
+    <!-- Main Content Area -->
+    <main class="container main-content">
+        <!-- Left Sidebar: User Profile Snippet -->
+        <aside class="sidebar left-sidebar">
+            <div class="widget profile-widget">
+                <h3 class="widget-title">Your Profile</h3>
+                <div id="profile-widget-content">
+                    <!-- Populated by script.js based on login status -->
+                </div>
+            </div>
+        </aside>
 
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white shadow-t-lg flex justify-around py-2 z-40">
-        <button onclick="navigateTo('home')" class="text-gray-600 hover:text-indigo-600 flex flex-col items-center">
-            <i class="fas fa-home"></i><span class="text-xs">Home</span></button>
-        <button onclick="navigateTo('profile')" class="text-gray-600 hover:text-indigo-600 flex flex-col items-center">
-            <i class="fas fa-user"></i><span class="text-xs">Profile</span></button>
-        <button onclick="navigateTo('marketplace')" class="text-gray-600 hover:text-indigo-600 flex flex-col items-center">
-            <i class="fas fa-store"></i><span class="text-xs">Market</span></button>
-        <button onclick="navigateTo('community')" class="text-gray-600 hover:text-indigo-600 flex flex-col items-center">
-            <i class="fas fa-users"></i><span class="text-xs">Community</span></button>
-    </nav>
+        <!-- Main Feed -->
+        <div class="feed">
+            <!-- Post Creator -->
+            <div class="card post-creator">
+                 <textarea placeholder="Share your latest trade or deck idea..." class="post-textarea"></textarea>
+                 <div class="post-creator-actions">
+                    <button class="btn btn-primary">Post</button>
+                 </div>
+            </div>
 
-
-    <div id="messageModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
-            <h3 id="modalTitle" class="text-xl font-semibold mb-4 text-gray-800"></h3>
-            <p id="modalMessage" class="text-gray-700 mb-6"></p>
-            <button onclick="closeModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">OK</button>
+            <!-- Example Feed Post Card -->
+            <div class="card feed-post">
+                <div class="post-header">
+                    <img src="https://i.pravatar.cc/50?u=user1" alt="User Avatar" class="avatar">
+                    <div class="post-author">
+                        <strong>TCG_Master</strong>
+                        <small>2 hours ago</small>
+                    </div>
+                </div>
+                <div class="post-body">
+                    <p>Just pulled a foil Showcase of 'The Wandering Emperor'! Looking to trade for modern staples. #MTG #TradeOffer</p>
+                </div>
+                <div class="post-actions">
+                    <button class="action-btn"><i class="fas fa-heart"></i> Like</button>
+                    <button class="action-btn"><i class="fas fa-comment"></i> Comment</button>
+                    <button class="action-btn"><i class="fas fa-share"></i> Share</button>
+                </div>
+            </div>
+             <!-- More posts would be loaded here -->
         </div>
-    </div>
 
+        <!-- Right Sidebar: Community Suggestions -->
+        <aside class="sidebar right-sidebar">
+            <div class="widget">
+                <h3 class="widget-title">Featured Groups</h3>
+                <ul class="widget-list">
+                    <li><a href="#">MTG Commander Zone</a></li>
+                    <li><a href="#">Pokemon TCG Traders</a></li>
+                    <li><a href="#">Yu-Gi-Oh! Deck Builders</a></li>
+                </ul>
+            </div>
+        </aside>
+    </main>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <!-- External JavaScript -->
+    <script src="/js/script.js"></script>
 
-        // --- Global Variables ---
-        let app, db, auth;
-        let currentUserId = null;
-        let isAuthInitialized = false;
-        let currentUserProfile = null;
-        let currentPage = 'home';
-
-        // --- Firebase Configuration ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyD2Z9tCmmgReMG77ywXukKC_YIXsbP3uoU",
-            authDomain: "hatakesocial-88b5e.firebaseapp.com",
-            projectId: "hatakesocial-88b5e",
-            storageBucket: "hatakesocial-88b5e.appspot.com",
-            messagingSenderId: "1091697032506",
-            appId: "1:1091697032506:web:fdd975b5f4b4cd69e0f04677"
-        };
-
-
-        // --- Initialization ---
-        async function initializeAppAndAuth() {
-            try {
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                onAuthStateChanged(auth, async (user) => {
-                    isAuthInitialized = true;
-                    if (user) {
-                        currentUserId = user.uid;
-                        document.getElementById('userIdDisplay').textContent = `UID: ${currentUserId.substring(0, 8)}...`;
-                        document.getElementById('authButton').textContent = 'Sign Out';
-                        await fetchUserProfile(currentUserId);
-                    } else {
-                        currentUserId = null;
-                        currentUserProfile = null;
-                        document.getElementById('userIdDisplay').textContent = '';
-                        document.getElementById('authButton').textContent = 'Sign In';
-                        await signInAnonymously(auth);
-                    }
-                    renderPage(currentPage);
-                });
-
-            } catch (error) {
-                console.error("Firebase initialization failed:", error);
-                showMessageModal('Error', `Application failed to load: ${error.message}`);
-            }
-        }
-
-
-        // --- User & Profile Functions ---
-        async function fetchUserProfile(userId) {
-            const userProfileRef = doc(db, "users", userId);
-            const docSnap = await getDoc(userProfileRef);
-            if (docSnap.exists()) {
-                currentUserProfile = docSnap.data();
-            } else {
-                const defaultProfile = {
-                    username: `User-${userId.substring(0, 5)}`,
-                    avatar: `https://i.pravatar.cc/150?u=${userId}`,
-                    bio: 'A new member of the HatakeSocial community!',
-                    tcgInterests: ['Pokemon', 'Magic: The Gathering'],
-                    userId: userId,
-                    createdAt: serverTimestamp()
-                };
-                await setDoc(userProfileRef, defaultProfile);
-                currentUserProfile = defaultProfile;
-            }
-        }
-
-        async function handleAuthAction() {
-            if (currentUserId) {
-                await signOut(auth);
-            } else {
-                await signInAnonymously(auth);
-            }
-        }
-
-
-        // --- Routing and Page Rendering ---
-        function navigateTo(pageName) {
-            currentPage = pageName;
-            renderPage(pageName);
-            updateNavigationLinks(pageName);
-        }
-
-        function updateNavigationLinks(activePage) {
-            document.querySelectorAll('.header-link').forEach(link => {
-                link.classList.remove('active');
-            });
-            const activeLink = document.getElementById(`nav-${activePage}`);
-            if (activeLink) activeLink.classList.add('active');
-        }
-
-        function renderPage(pageName) {
-            const appContent = document.getElementById('appContent');
-            if (!isAuthInitialized) {
-                appContent.innerHTML = `<div class="text-center p-10">Loading...</div>`;
-                return;
-            }
-
-            switch (pageName) {
-                case 'home': renderHomePage(appContent); break;
-                case 'profile': renderProfilePage(appContent); break;
-                case 'marketplace': renderMarketplacePage(appContent); break;
-                case 'community': renderCommunityPage(appContent); break;
-                default: appContent.innerHTML = `<div class="text-center p-10">Page not found.</div>`;
-            }
-        }
-
-
-        // --- Page Render Functions ---
-
-        function renderHomePage(container) {
-             container.innerHTML = `
-                <div class="grid grid-cols-12 gap-8">
-                    <aside class="col-span-12 md:col-span-3">
-                        <div class="bg-white rounded-lg shadow p-4 sticky top-24">
-                            <img src="${currentUserProfile?.avatar || ''}" class="w-24 h-24 rounded-full mx-auto border-4 border-indigo-200">
-                            <h2 class="text-center font-bold text-lg mt-2">${currentUserProfile?.username || 'Guest'}</h2>
-                            <p class="text-center text-sm text-gray-500">${currentUserProfile?.bio || ''}</p>
-                            <hr class="my-4">
-                            <div class="text-sm space-y-2">
-                                <p><i class="fas fa-id-card w-6 text-indigo-500"></i> ${currentUserId ? `UID: ${currentUserId.substring(0,8)}...` : 'Not Signed In'}</p>
-                            </div>
-                        </div>
-                    </aside>
-
-                    <div class="col-span-12 md:col-span-6">
-                        <div class="bg-white rounded-lg shadow p-4 mb-6">
-                             <textarea id="newPostContent" placeholder="Share what's on your mind..." rows="3" class="w-full p-2 border rounded-lg"></textarea>
-                             <div class="flex justify-end mt-2">
-                                <button id="submitPostBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg text-sm">Post</button>
-                             </div>
-                        </div>
-                        <div id="postsDisplay" class="space-y-6">Loading posts...</div>
-                    </div>
-
-                    <aside class="col-span-12 md:col-span-3">
-                         <div class="bg-white rounded-lg shadow p-4 sticky top-24">
-                            <h3 class="font-bold mb-4">Suggested Groups</h3>
-                            </div>
-                    </aside>
-                </div>`;
-
-            document.getElementById('submitPostBtn').addEventListener('click', handlePostSubmit);
-            fetchAndDisplayPosts();
-        }
-
-        function renderProfilePage(container) {
-            container.innerHTML = `
-                <div class="bg-white rounded-lg shadow overflow-hidden">
-                    <div class="h-40 bg-indigo-200"></div>
-                    <div class="p-8 -mt-20">
-                        <img src="${currentUserProfile?.avatar || ''}" class="w-32 h-32 rounded-full border-4 border-white mx-auto">
-                        <h1 class="text-center text-3xl font-bold mt-4">${currentUserProfile?.username || ''}</h1>
-                        <p class="text-center text-gray-600">${currentUserProfile?.bio || ''}</p>
-
-                        <div class="mt-8">
-                            <h2 class="text-xl font-bold">My Collection Showcase</h2>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                                <img src="https://via.placeholder.com/150x210.png?text=Card+1" class="rounded-lg shadow-md">
-                                <img src="https://via.placeholder.com/150x210.png?text=Card+2" class="rounded-lg shadow-md">
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        function renderMarketplacePage(container) {
-            container.innerHTML = `
-                <h1 class="text-3xl font-bold mb-6">Marketplace</h1>
-                <div id="marketplaceItemsDisplay" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                    </div>`;
-            fetchAndDisplayMarketplaceItems();
-        }
-
-        function renderCommunityPage(container) {
-            container.innerHTML = `
-                <h1 class="text-3xl font-bold mb-6">Community Groups</h1>
-                <div id="communityGroupsDisplay" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    </div>`;
-            fetchAndDisplayCommunityGroups();
-        }
-
-
-        // --- Data Fetching and Display Functions ---
-
-        async function handlePostSubmit() {
-            const content = document.getElementById('newPostContent').value;
-            if (!content.trim() || !currentUserId || !currentUserProfile) return;
-
-            await addDoc(collection(db, "posts"), {
-                userId: currentUserId,
-                username: currentUserProfile.username,
-                avatar: currentUserProfile.avatar,
-                content: content,
-                likes: 0,
-                comments: [],
-                timestamp: serverTimestamp()
-            });
-            document.getElementById('newPostContent').value = '';
-        }
-
-        function fetchAndDisplayPosts() {
-            const q = query(collection(db, "posts"), orderBy('timestamp', 'desc'));
-            onSnapshot(q, (snapshot) => {
-                const postsDisplay = document.getElementById('postsDisplay');
-                if(!postsDisplay) return;
-                postsDisplay.innerHTML = snapshot.docs.map(doc => {
-                    const post = doc.data();
-                    const postDate = post.timestamp ? post.timestamp.toDate().toLocaleDateString() : 'Just now';
-                    return `
-                        <div class="bg-white rounded-lg shadow p-4">
-                            <div class="flex items-center mb-4">
-                                <img src="${post.avatar}" class="w-12 h-12 rounded-full mr-4">
-                                <div>
-                                    <p class="font-bold">${post.username}</p>
-                                    <p class="text-xs text-gray-500">${postDate}</p>
-                                </div>
-                            </div>
-                            <p>${post.content}</p>
-                        </div>`;
-                }).join('');
-            });
-        }
-
-        function fetchAndDisplayMarketplaceItems() {
-             const mockItems = [
-                { title: "Holo Charizard", price: 250.00, img: "https://via.placeholder.com/200x280.png?text=Charizard" },
-                { title: "Black Lotus", price: 10000.00, img: "https://via.placeholder.com/200x280.png?text=Black+Lotus" }
-            ];
-            const marketplaceItemsDisplay = document.getElementById('marketplaceItemsDisplay');
-             if(!marketplaceItemsDisplay) return;
-            marketplaceItemsDisplay.innerHTML = mockItems.map(item => `
-                <div class="bg-white rounded-lg shadow overflow-hidden">
-                    <img src="${item.img}" class="w-full h-48 object-cover">
-                    <div class="p-4">
-                        <h3 class="font-bold">${item.title}</h3>
-                        <p class="text-green-600 font-semibold">$${item.price.toFixed(2)}</p>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function fetchAndDisplayCommunityGroups() {
-            const mockGroups = [
-                { name: "MTG Commander Zone", members: "1.2k", img: "https://via.placeholder.com/300x150.png?text=MTG" },
-                { name: "Pokemon TCG Traders", members: "875", img: "https://via.placeholder.com/300x150.png?text=Pokemon" },
-            ];
-             const communityGroupsDisplay = document.getElementById('communityGroupsDisplay');
-             if(!communityGroupsDisplay) return;
-             communityGroupsDisplay.innerHTML = mockGroups.map(group => `
-                <div class="bg-white rounded-lg shadow">
-                    <img src="${group.img}" class="w-full h-24 object-cover rounded-t-lg">
-                    <div class="p-4">
-                        <h3 class="font-bold">${group.name}</h3>
-                        <p class="text-sm text-gray-500">${group.members} members</p>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // --- Modal Functions ---
-        const messageModal = document.getElementById('messageModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalMessage = aocument.getElementById('modalMessage');
-
-        function showMessageModal(title, message) {
-            modalTitle.textContent = title;
-            modalMessage.textContent = message;
-            messageModal.classList.remove('hidden');
-        }
-
-        function closeModal() {
-            messageModal.classList.add('hidden');
-        }
-
-
-        // --- Global Event Listeners & Initial Load ---
-        window.navigateTo = navigateTo;
-        window.closeModal = closeModal;
-        document.getElementById('authButton').addEventListener('click', handleAuthAction);
-        initializeAppAndAuth();
-
-    </script>
 </body>
 </html>
